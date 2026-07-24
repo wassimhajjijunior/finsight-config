@@ -1,0 +1,12 @@
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:postgresql://account-db:5432/account_db
+    username: account_user
+    password: account_pass
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
