@@ -10,6 +10,15 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    flyway:
+      enabled: true
+      locations: classpath:db/migration
+
+
+
   kafka:
     bootstrap-servers: kafka:9092
     producer:
@@ -19,3 +28,74 @@ spring:
       group-id: budget-service-group
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# Resilience4j configuration
+resilience4j:
+
+  circuitbreaker:
+    instances:
+      transaction-service:
+        # Open circuit after 50% failure rate
+        failureRateThreshold: 50
+        # Minimum 5 calls before calculating failure rate
+        minimumNumberOfCalls: 5
+        # Keep circuit open for 30 seconds before trying again
+        waitDurationInOpenState: 30s
+        # Allow 2 test calls when half-open
+        permittedNumberOfCallsInHalfOpenState: 2
+        # Track last 10 calls for failure rate calculation
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+        # Record these exceptions as failures
+        recordExceptions:
+          - feign.FeignException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+
+  retry:
+    instances:
+      transaction-service:
+        # Retry up to 3 times
+        maxAttempts: 3
+        # Start with 500ms wait, doubles each retry
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        # Only retry on these exceptions
+        retryExceptions:
+          - feign.FeignException.ServiceUnavailable
+          - java.io.IOException
+
+  bulkhead:
+    instances:
+      transaction-service:
+        # Max 10 concurrent calls to transaction-service
+        maxConcurrentCalls: 10
+        # Wait max 500ms for a slot before rejecting
+        maxWaitDuration: 500ms
+
+  timelimiter:
+    instances:
+      transaction-service:
+        # Fail if transaction-service takes more than 3 seconds
+        timeoutDuration: 3s
+
+# Enable Resilience4j metrics exposure
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,circuitbreakers,metrics
+  endpoint:
+    health:
+      show-details: always
